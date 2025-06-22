@@ -97,6 +97,7 @@ class YOLOSegmentAnalyzeView(APIView):
 
     def post(self, request):
         image_file = request.FILES.get("image")
+        print("img:",image_file)
         if not image_file:
             return Response({"error": "No image uploaded."}, status=400)
 

@@ -25,8 +25,19 @@ SECRET_KEY = 'django-insecure-_2+h67y%fzmtem!hrzmabb#p^n3g0xxgt%$$xx^#fj!br)h=y3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost','127.0.0.1'] 
 
+
+# For development, allow all origins
+CORS_ALLOW_ALL_ORIGINS = True
+
+# OR, for more specific control (replace with your actual frontend URL)
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5500",  # If you're using Live Server on port 5500
+    "http://localhost:5500", # Another common localhost port
+    "http://localhost:5173",
+    "http://localhost:5175",
+]
 
 # Application definition
 
@@ -51,6 +62,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'mainserver.urls'
