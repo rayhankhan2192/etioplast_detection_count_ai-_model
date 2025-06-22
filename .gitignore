@@ -2,7 +2,5 @@ Dataset/
 runs/
 Test Image/
 venv/
-Trained Model/
-.env
 media/
 Frontend-react/
