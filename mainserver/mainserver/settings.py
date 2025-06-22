@@ -37,6 +37,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5500", # Another common localhost port
     "http://localhost:5173",
     "http://localhost:5175",
+    "http://178.16.139.239:8000",
 ]
 
 # Application definition
