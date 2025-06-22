@@ -13,7 +13,6 @@ django
 djangorestframework
 django-cors-headers
 requests
-mysqlclient
 pillow
 python-decouple
 python-dotenv
