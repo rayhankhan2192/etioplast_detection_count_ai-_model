@@ -4,3 +4,4 @@ Test Image/
 venv/
 media/
 Frontend-react/
+.env
