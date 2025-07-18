@@ -104,8 +104,8 @@ from .segmentation import SegmentationAnalyzer
 from .generativeai import get_generative_response
 from dotenv import load_dotenv
 
-load_dotenv()
-model_path = os.getenv("MODEL_PATH")
+model_path = "/root/Rayhan/etioplast_detection_count_ai-_model/TrainedModel/best8v2.pt"
+model = YOLO(model_path)
 
 
 class YOLOSegmentAnalyzeView(APIView):

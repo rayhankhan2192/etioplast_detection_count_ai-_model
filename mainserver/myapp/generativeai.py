@@ -4,9 +4,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
-
-API_KEY = os.getenv("API_KEY")
+API_KEY = ""
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = "llama-3.3-70b-versatile"
 
