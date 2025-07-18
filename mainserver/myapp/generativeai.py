@@ -4,9 +4,12 @@ import os
 import requests
 from dotenv import load_dotenv
 
-API_KEY = ""
-API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+load_dotenv()
+
+# Access the variables
+API_KEY = os.getenv("API_KEY")
+API_URL = os.getenv("API_URL")
+MODEL = os.getenv("LLM_MODEL")
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}",
