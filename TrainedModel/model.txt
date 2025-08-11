@@ -1,0 +1,1 @@
+TrainedModel/best8v2.pt -> This is the first model trained. This model is not so optimize

@@ -6,3 +6,15 @@ media/
 Frontend-react/
 *.env
 mainserver/.env
+TrainedModelv2/best8v2.pt
+TrainedModelv2/modelv2_s50.pt
+TrainedModelv2/modelv3_m100.pt
+TrainedModelv2/modelv4_m63.pt
+TrainedModelv2/modelv5_m139.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
