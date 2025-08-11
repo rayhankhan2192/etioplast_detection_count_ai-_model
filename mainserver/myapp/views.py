@@ -74,3 +74,84 @@ CLASS_DEFINITIONS = {
     3: {'name': 'Plastoglobule', 'color': (255, 255, 0)},
     4: {'name': 'Starch Grain', 'color': (128, 0, 128)}
 }
+
+class DetectedObject:
+    def __init__(self, class_id, contour, mask, confidence, bbox, yolo_detection_idx):
+        self.class_id = class_id
+        self.contour = contour
+        self.mask = mask
+        self.confidence = float(confidence)
+        self.yolo_idx = yolo_detection_idx
+        self.bbox = bbox  # [x1,y1,x2,y2]
+        self.area = cv2.contourArea(contour)
+        self.center = self._calculate_center()
+        self.children = []
+        self.parent = None
+        self.is_valid = True
+        self.object_id = None
+
+    def _calculate_center(self):
+        M = cv2.moments(self.contour)
+        if M['m00'] != 0:
+            return (int(M['m10'] / M['m00']), int(M['m01'] / M['m00']))
+        return (int((self.bbox[0] + self.bbox[2]) / 2), int((self.bbox[1] + self.bbox[3]) / 2))
+
+    def get_name(self):
+        return CLASS_DEFINITIONS[self.class_id]['name']
+
+    def get_color(self):
+        return CLASS_DEFINITIONS[self.class_id]['color']
+
+
+class ModelFirstDetector:
+    """YOLO-first with STRICT rules: Valid Etioplast = complete + square-like + ≥1 PLB (strictly inside).
+    Only organelles strictly inside a VALID Etioplast are kept and saved.
+    """
+    def __init__(self, model_path):
+        self.model = YOLO(model_path)
+        self.detected_objects = []
+        self.valid_etioplasts = []
+        self.model_summary = {}
+        self.image_shape = None
+        self.stats = {
+            'model_detections': {},
+            'processed_objects': 0,
+            'valid_etioplasts': 0,
+            'rejected_etioplasts': 0,
+            'valid_organelles': 0,
+            'rejected_organelles': 0,
+            'reject_no_plb': 0,
+            'reject_incomplete': 0,
+            'reject_not_square_like': 0
+        }
+
+    # YOLO detection and conversion
+    def run_yolo_detection(self, image_path):
+        logger.info(f"Running YOLO detection on: {os.path.basename(image_path)}")
+        results = self.model.predict(
+            source=image_path,
+            imgsz=640,
+            conf=Config.CONFIDENCE_THRESHOLD,
+            iou=Config.IOU_THRESHOLD,
+            save=False,
+            verbose=True
+        )
+        if not results or results[0].masks is None:
+            logger.warning("No detections found by YOLO")
+            return None
+        return results[0]
+    
+    def extract_model_summary(self, yolo_result):
+        if yolo_result.boxes is not None:
+            class_ids = yolo_result.boxes.cls.cpu().numpy().astype(int)
+            class_counts = {}
+            for cid in class_ids:
+                cname = CLASS_DEFINITIONS[cid]['name']
+                class_counts[cname] = class_counts.get(cname, 0) + 1
+            self.model_summary = class_counts
+            self.stats['model_detections'] = class_counts
+            logger.info("YOLO Model Detection Summary:")
+            for k, v in class_counts.items():
+                logger.info(f"  {k}: {v}")
+            return True
+        return False
