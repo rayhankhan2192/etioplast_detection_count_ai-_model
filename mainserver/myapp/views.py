@@ -13,6 +13,7 @@ from .segmentation import SegmentationAnalyzer
 from .generativeai import get_generative_response
 from dotenv import load_dotenv
 import logging
+from skimage.transform import resize
 
 # model_path = "/root/Rayhan/etioplast_detection_count_ai-_model/TrainedModel/best8v2.pt"
 # model = YOLO(model_path)
@@ -155,3 +156,47 @@ class ModelFirstDetector:
                 logger.info(f"  {k}: {v}")
             return True
         return False
+    
+
+    def convert_yolo_to_objects(self, yolo_result, image_path):
+        img = cv2.imread(image_path)
+        if img is None:
+            logger.error("Failed to read image")
+            return []
+        orig_h, orig_w = img.shape[:2]
+        self.image_shape = (orig_h, orig_w)
+
+        masks = yolo_result.masks.data.cpu().numpy()
+        class_ids = yolo_result.boxes.cls.cpu().numpy().astype(int)
+        confidences = yolo_result.boxes.conf.cpu().numpy()
+        boxes = yolo_result.boxes.xyxy.cpu().numpy()
+
+        detected_objects = []
+        for i, (mask, class_id, confidence, box) in enumerate(zip(masks,class_ids, confidences, boxes)):
+            resized_mask = resize(mask, (orig_h, orig_w), order=0, preserve_range=True, anti_aliasing=False).astype(np.uint8)*255
+            contours, _ = cv2.findContours(resized_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                continue
+            main_contour = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(main_contour) < Config.MIN_CONTOUR_AREA:
+                continue
+            scale_x = orig_w / 640
+            scale_y = orig_h / 640
+
+            scale_box = [
+                int(box[0] * scale_x),
+                int(box[1] * scale_y),
+                int(box[2] * scale_x),
+                int(box[3] * scale_y)
+            ]
+            detected_object = DetectedObject(class_id, main_contour, resized_mask, float(confidence), scale_box, i)
+            detected_object.object_id = f"{CLASS_DEFINITIONS[class_id]['name']}_{i+1}"
+            detected_objects.append(detected_object)
+        logger.info(f"Converted {len(detected_objects)} YOLO detection to objects")
+        self.detected_objects = detected_objects
+        self.stats['processed_objects'] = len(detected_objects)
+        return detected_objects
+    
+
+
+
