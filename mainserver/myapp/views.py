@@ -237,7 +237,36 @@ class ModelFirstDetector:
         return True
 
 
+    def points_inside_ratio(self, contour, parent_mask):
+        point = contour[:, 0, :]
+        yy = point[:, 1].clip(0, self.image_shape[0]-1)
+        xx = point[:, 0].clip(0, self.image_shape[1]-1)
+        inside = parent_mask[yy, xx] > 0
+        return float(np.count_nonzero(inside)) / max(1, len(point))
     
+    def overlap_ratio(self, child_mask, parent_mask):
+        inter = cv2.bitwise_and(child_mask, parent_mask)
+        inter_area = float(np.sum(inter > 0))
+        child_area = float(np.sim(child_mask > 0))
+        return (inter_area / child_area) if child_area > 0 else 0
+    
+    def strict_contains(self, child_obj, parent_obj):
+        """Require BOTH sufficient overlap and points-inside, using small parent dilation."""
+        dil = Config.PARENT_DILATE_ITER if child_obj.class_id == 2 else Config.PARENT_DILATE_ITER
+        parent_mask = self.mask_from_contour(parent_obj.contour, dilate_iters=dil)
+
+        ov_min = Config.CLASS_OVERLAP_MIN.get(child_obj.class_id, 0.5)
+        pt_min = Config.CLASS_POINTS_INSIDE_MIN.get(child_obj.class_id, 0.5)
+
+        ov = self.overlap_ratio(child_obj.mask, parent_mask)
+        if ov < ov_min:
+            return False
+
+        pts = self.points_inside_ratio(child_obj.contour, parent_mask)
+        if pts < pt_min:
+            return False
+        return True
+
 
 
 
