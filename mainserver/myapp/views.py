@@ -197,6 +197,48 @@ class ModelFirstDetector:
         self.stats['processed_objects'] = len(detected_objects)
         return detected_objects
     
+    # rejects incomplete objects that touch the image frame
+    def touches_border(self, contour):
+        h, w = self.image_shape
+        m = Config.BORDER_MARGIN
+        x, y, bw, bh = cv2.boundingRect(contour)
+        if x <= m or y <= m or (x + bw) >= (w - m) or (y + bh) >= (h - m):
+            return True
+        if np.any(contour[:, 0, 0] <= m) or np.any(contour[:, 0, 1] <= m) or \
+           np.any(contour[:, 0, 0] >= (w - m)) or np.any(contour[:, 0, 1] >= (h - m)):
+            return True
+        return False
+    
+    # keeps only objects Etioplast that are roughly square/rectangular and compact.
+    def is_square_like(self, contour):
+        area = cv2.contourArea(contour)
+        if area <= 0:
+            return False
+        x, y, w, h = cv2.boundingRect(contour)
+        bbox_area = float(w * h) if w > 0 and h > 0 else 1.0
+        ar = w / h if h > 0 else 999.0
+        if not (Config.AR_MIN <= ar <= Config.AR_MAX):
+            return False
+        extent = area / bbox_area
+        if extent < Config.EXTENT_MIN:
+            return False
+        rect = cv2.minAreaRect(contour)
+        rw, rh = rect[1]
+        rarea = float(rw * rh) if rw > 0 and rh > 0 else 1.0
+        fill_ratio = area / rarea
+        if fill_ratio < Config.RECT_FILL_MIN:
+            return False
+        peri = cv2.arcLength(contour, True)
+        eps = Config.POLY_EPS_FRAC * peri
+        approx = cv2.approxPolyDP(contour, eps, True)
+        corners = len(approx)
+        if not (Config.POLY_MIN <= corners <= Config.POLY_MAX):
+            return False
+        return True
+
+
+    
+
 
 
 
