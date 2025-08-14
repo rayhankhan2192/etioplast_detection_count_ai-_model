@@ -10,7 +10,7 @@ from .config import Config, CLASS_DEFINITIONS, DetectedObject
 
 load_dotenv()
 # Allow .env override, but fall back to Config.MODEL_PATH
-model_path = os.getenv("MODEL_PATH") or getattr(Config, "MODEL_PATH", None)
+model_path = os.getenv("MODEL_PATH") 
 
 logger = logging.getLogger(__name__)
 _YOLO = None

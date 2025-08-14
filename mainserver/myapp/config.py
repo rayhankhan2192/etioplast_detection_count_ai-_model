@@ -4,9 +4,10 @@ import cv2
 import os
 import numpy as np
 import logging
+from django.conf import settings
 
 class Config:
-    SAVE_DIR = r'save522'
+    SAVE_DIR = os.path.join(settings.MEDIA_ROOT, 'detections')
 
     CONFIDENCE_THRESHOLD = 0.5
     MIN_CONTOUR_AREA = 30

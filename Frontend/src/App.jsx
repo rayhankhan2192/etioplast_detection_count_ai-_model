@@ -19,7 +19,7 @@ function App() {
     }
 
     const formData = new FormData();
-    formData.append("image", selectedFile);
+    formData.append("file", selectedFile);
 
     try {
       const response = await fetch(

@@ -8,6 +8,7 @@ pandas
 scikit-learn
 opencv-python
 ultralytics
+scikit-image
 
 django
 djangorestframework

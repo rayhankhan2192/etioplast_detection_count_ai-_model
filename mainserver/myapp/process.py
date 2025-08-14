@@ -37,6 +37,7 @@ class Process:
 
     def process_image(self, image_path):
         logger.info(f"🚀 Starting MODEL-FIRST processing for: {os.path.basename(image_path)}")
+        print(f"Processing image: {image_path}")
         img = cv2.imread(image_path)
         if img is None:
             logger.error("Failed to read image")
