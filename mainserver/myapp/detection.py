@@ -4,13 +4,13 @@ import numpy as np
 import logging
 from skimage.transform import resize
 from ultralytics import YOLO
-from .config import Config, CLASS_DEFINITIONS
-from .config import DetectedObject
 from dotenv import load_dotenv
 
+from .config import Config, CLASS_DEFINITIONS, DetectedObject
 
 load_dotenv()
-model_path = os.getenv("MODEL_PATH")
+# Allow .env override, but fall back to Config.MODEL_PATH
+model_path = os.getenv("MODEL_PATH") or getattr(Config, "MODEL_PATH", None)
 
 logger = logging.getLogger(__name__)
 _YOLO = None
@@ -18,6 +18,8 @@ _YOLO = None
 def get_model():
     global _YOLO
     if _YOLO is None:
+        if not model_path:
+            raise ValueError("MODEL_PATH is not set in .env and Config.MODEL_PATH is missing.")
         logger.info(f"Loading YOLO model: {model_path}")
         _YOLO = YOLO(model_path)
     return _YOLO
@@ -25,9 +27,11 @@ def get_model():
 def run_yolo_detection(self, image_path):
     logger.info(f"Running YOLO detection on: {os.path.basename(image_path)}")
     model = get_model()
+    # Ensure IMG_SIZE exists (default 640 if not in Config)
+    imgsz = getattr(Config, "IMG_SIZE", 640)
     results = model.predict(
         source=image_path,
-        imgsz=Config.IMG_SIZE,
+        imgsz=imgsz,
         conf=Config.CONFIDENCE_THRESHOLD,
         iou=Config.IOU_THRESHOLD,
         save=False,
@@ -53,7 +57,10 @@ def extract_model_summary(self, yolo_result):
         return True
     return False
 
-def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=Config.MIN_CONTOUR_AREA):
+def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=None):
+    """
+    Returns: (detected_objects: list[DetectedObject], image_shape: (h, w))
+    """
     img = cv2.imread(image_path)
     if img is None:
         return [], None
@@ -64,6 +71,9 @@ def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=Config.MIN
     class_ids = yolo_result.boxes.cls.cpu().numpy().astype(int)
     confidences = yolo_result.boxes.conf.cpu().numpy()
     boxes = yolo_result.boxes.xyxy.cpu().numpy()
+
+    if min_contour_area is None:
+        min_contour_area = Config.MIN_CONTOUR_AREA
 
     detected = []
     for i, (mask, cid, conf, box) in enumerate(zip(masks, class_ids, confidences, boxes)):
@@ -78,8 +88,9 @@ def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=Config.MIN
         if cv2.contourArea(main_contour) < min_contour_area:
             continue
 
-        # scale boxes if needed (kept consistent with your earlier code)
-        scale_x, scale_y = orig_w / Config.IMG_SIZE, orig_h / Config.IMG_SIZE
+        # scale box from model size to original size
+        imgsz = getattr(Config, "IMG_SIZE", 640)
+        scale_x, scale_y = orig_w / imgsz, orig_h / imgsz
         scaled_box = [int(box[0]*scale_x), int(box[1]*scale_y), int(box[2]*scale_x), int(box[3]*scale_y)]
 
         obj = DetectedObject(cid, main_contour, resized_mask, float(conf), scaled_box, i)
