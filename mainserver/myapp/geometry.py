@@ -1,7 +1,13 @@
+import os
+import csv
+import math
 import cv2
 import numpy as np
+from skimage.morphology import skeletonize
+
 from .config import Config
 
+#geometry primitives
 def mask_from_contour(image_shape, contour, dilate_iters=0):
     mask = np.zeros(image_shape, dtype=np.uint8)
     cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
@@ -59,3 +65,26 @@ def is_square_like(contour):
     if not (Config.POLY_MIN <= corners <= Config.POLY_MAX):
         return False
     return True
+
+# measurements
+class MeasurementCalculator:
+    """All measurement conversions in one place (px/µm -> µm, µm²)"""
+    def __init__(self, px_per_um: float):
+        self.px_per_um = float(px_per_um) if px_per_um else float(Config.PX_PER_UM)
+        if self.px_per_um <= 0:
+            self.px_per_um = float(Config.PX_PER_UM)
+
+    @property
+    def um_per_px(self) -> float:
+        return 1.0 / self.px_per_um
+
+    @property
+    def um2_per_px2(self) -> float:
+        up = self.um_per_px
+        return up * up
+
+    def px_area_to_um2(self, area_px2: float) -> float:
+        return float(area_px2) * self.um2_per_px2
+
+    def px_len_to_um(self, length_px: float) -> float:
+        return float(length_px) * self.um_per_px
