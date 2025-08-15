@@ -5,7 +5,6 @@ from .config import Config, CLASS_DEFINITIONS, logger
 from .geometry import mask_from_contour, points_inside_ratio, overlap_ratio, touches_border, is_square_like
 
 def strict_contains(self, child_obj, parent_obj):
-    """Require BOTH sufficient overlap and points-inside, using small parent dilation."""
     dil = Config.PARENT_DILATE_ITER if child_obj.class_id == 2 else Config.PARENT_DILATE_ITER
     parent_mask = mask_from_contour(self.image_shape, parent_obj.contour, dilate_iters=dil)
 
@@ -23,13 +22,7 @@ def strict_contains(self, child_obj, parent_obj):
     return True
 
 def build_hierarchy(self):
-    """
-    Pass 1: Validate Etioplasts (complete + square-like + contains ≥1 PLB via STRICT containment).
-    Pass 2: Attach organelles ONLY if STRICTLY contained in a VALID Etioplast.
-    Final scrub: Drop any organelle that doesn't STRICTLY belong to some valid Etioplast.
-    """
     logger.info("Building hierarchy with STRICT rules (valid-etioplast-only).")
-
     etioplasts = [o for o in self.detected_objects if o.class_id == 0]
     plbs = [o for o in self.detected_objects if o.class_id == 1]
     others = [o for o in self.detected_objects if o.class_id > 1]
@@ -39,12 +32,9 @@ def build_hierarchy(self):
         return
 
     etioplasts.sort(key=lambda x: x.area, reverse=True)
-
-    # PASS 1: validate Etioplasts using PLB strict containment
     valid_list = []
     for idx, et in enumerate(etioplasts):
         logger.info(f"Check Etioplast {idx+1}/{len(etioplasts)} (conf: {et.confidence:.2f}, area: {et.area:.0f})")
-
         plbs_inside = [p for p in plbs if p.parent is None and strict_contains(self, p, et)]
         if len(plbs_inside) == 0:
             logger.warning("❌ Rejected: no PLB strictly inside")
@@ -74,7 +64,6 @@ def build_hierarchy(self):
         et.is_valid = True
         valid_list.append(et)
 
-    # PASS 2: attach other organelles strictly inside valid etioplasts
     for et in valid_list:
         for org in others:
             if org.parent is not None:
@@ -86,7 +75,6 @@ def build_hierarchy(self):
     self.valid_etioplasts = valid_list
     self.stats['valid_etioplasts'] = len(self.valid_etioplasts)
 
-    # FINAL SCRUB: drop anything not strictly inside some valid etioplast
     valid_children = 0
     rejected_children = 0
     for obj in self.detected_objects:
@@ -138,9 +126,6 @@ def draw_visualization_improved(self, img):
     return overlay
 
 def save_outputs_mask(self, base_name):
-    """
-    Same logic as your original save_masks(), just exposed under the requested name.
-    """
     masks_dir = os.path.join(Config.SAVE_DIR, 'masks')
     os.makedirs(masks_dir, exist_ok=True)
     logger.info("💾 Saving individual masks...")
@@ -160,33 +145,3 @@ def save_outputs_mask(self, base_name):
             combined_mask = cv2.bitwise_or(combined_mask, om)
 
     cv2.imwrite(os.path.join(masks_dir, f"{base_name}_combined_mask.png"), combined_mask)
-
-def generate_report(self, image_name):
-    report = {
-        'image': image_name,
-        'timestamp': self.now_iso(),
-        'model_summary': self.model_summary,
-        'processing_stats': self.stats,
-        'valid_etioplasts': []
-    }
-    for i, et in enumerate(self.valid_etioplasts):
-        oc = {}
-        od = []
-        for ch in et.children:
-            if ch.is_valid:
-                nm = ch.get_name()
-                oc[nm] = oc.get(nm, 0) + 1
-                od.append({
-                    'id': ch.object_id, 'type': nm, 'confidence': float(ch.confidence),
-                    'area': float(ch.area), 'center': ch.center, 'bbox': ch.bbox
-                })
-        report['valid_etioplasts'].append({
-            'id': f"Etioplast_{i+1}",
-            'confidence': float(et.confidence),
-            'area': float(et.area),
-            'center': et.center,
-            'bbox': et.bbox,
-            'organelle_counts': oc,
-            'organelle_details': od
-        })
-    return report
