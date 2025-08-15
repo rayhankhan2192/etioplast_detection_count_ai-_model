@@ -53,8 +53,8 @@ export default function QuantificationPanel({ result }) {
             color="yellow"
             label="Etioplast Area"
             value={`${
-              result?.analysis?.Etioplast?.area_um2
-                ? result?.analysis?.Etioplast?.area_um2
+              result?.analysis?.Etioplast?.total_area_um2
+                ? result?.analysis?.Etioplast?.total_area_um2
                 : "0"
             } µm²`}
           />
@@ -62,8 +62,8 @@ export default function QuantificationPanel({ result }) {
             color="purple"
             label="PLB Area"
             value={`${
-              result?.analysis?.PLB?.area_um2
-                ? result?.analysis?.PLB?.area_um2
+              result?.analysis?.PLB?.total_area_um2
+                ? result?.analysis?.PLB?.total_area_um2
                 : "0"
             } µm²`}
           />
@@ -98,8 +98,26 @@ export default function QuantificationPanel({ result }) {
             color="blue"
             label="Avg. Plastoglobule Diameter"
             value={`${
-              result?.analysis?.Plastoglobule?.avg_diameter_um
-                ? result?.analysis?.Plastoglobule?.avg_diameter_um
+              result?.analysis?.Plastoglobule?.diameter_um
+                ? result?.analysis?.Plastoglobule?.diameter_um
+                : "0"
+            } µm²`}
+          />
+          <QuantCard
+            color="blue"
+            label="Starch Gain Count"
+            value={`${
+              result?.analysis?.StarchGain?.count
+                ? result?.analysis?.StarchGain?.count
+                : "0"
+            } µm²`}
+          />
+          <QuantCard
+            color="blue"
+            label="Starch Gain Area"
+            value={`${
+              result?.analysis?.StarchGain?.total_area_um2
+                ? result?.analysis?.StarchGain?.total_area_um2
                 : "0"
             } µm²`}
           />
