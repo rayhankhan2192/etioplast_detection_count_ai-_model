@@ -6,6 +6,7 @@ from django.conf import settings
 
 from .config import logger, Config
 from .process import Process, is_image_file
+from .generativeai import get_generative_response
 
 def _unique_dir(root: str, name: str) -> str:
     safe = get_valid_filename(name)
@@ -187,11 +188,17 @@ def analyze_summary(request):
         out_url = None
         if 'outputs' in report and 'blended' in report['outputs']:
             out_url = _as_media_url_abs(request, report['outputs']['blended'])
+        explanation = None
+        try:
+            explanation = get_generative_response(report.get('analysis', {}))
+        except Exception:
+            logger.exception("Generative explanation failed")
 
         return JsonResponse({
             "analysis": report.get('analysis'),
             "scale_used": report.get('scale_used'),
-            "output_image_url": out_url
+            "output_image_url": out_url,
+            "explanation": explanation
         })
     
     except Exception as e:
