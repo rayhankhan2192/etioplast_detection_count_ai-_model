@@ -8,7 +8,6 @@ from django.conf import settings
 
 class Config:
     SAVE_DIR = os.path.join(settings.MEDIA_ROOT, 'detections')
-
     CONFIDENCE_THRESHOLD = 0.5
     MIN_CONTOUR_AREA = 30
     IOU_THRESHOLD = 0.3
