@@ -154,3 +154,72 @@ def write_measurements_csv(valid_etioplasts, px_per_um: float, save_dir: str, ba
     import pandas as pd
     pd.DataFrame(rows).to_csv(csv_path, index=False, float_format='%.3f')
     return csv_path
+
+
+def summarize_for_api(valid_etioplasts, px_per_um: float, decimals: int | None = None):
+    if decimals is None:
+        from .config import Config
+        decimals = getattr(Config, "MEASURE_DECIMALS", 3)
+    calc = MeasurementCalculator(px_per_um)
+    um_per_px_str = f"{calc.um_per_px:.6f} µm/pixel"
+
+    def r(v):  # round helper
+        return round(float(v), decimals)
+
+    # accumulators
+    et_area_px2 = 0
+    et_count = 0
+    plb_area_px2 = 0
+    plb_count = 0
+    pro_count = 0
+    pro_len_px = 0
+    pg_count = 0
+    pg_diams_px = []
+    starch_count = 0
+    starch_area_px2 = 0
+
+    for et in valid_etioplasts:
+        et_count += 1
+        et_area_px2 += _binary_area(et.mask)
+        for ch in et.children:
+            if not getattr(ch, 'is_valid', False):
+                continue
+            if ch.class_id == 1:
+                plb_count += 1
+                plb_area_px2 += _binary_area(ch.mask)
+            elif ch.class_id == 2:
+                pro_count += 1
+                pro_len_px += _skeleton_length_px(ch.mask)
+            elif ch.class_id == 3:
+                pg_count += 1
+                a = _binary_area(ch.mask)
+                d_px = _equivalent_diameter_px(a)
+                if d_px > 0:
+                    pg_diams_px.append(d_px)
+            elif ch.class_id == 4:
+                starch_count += 1
+                starch_area_px2 += _binary_area(ch.mask)
+
+    analysis = {
+        "Etioplast": {
+            "total_area_um2": r(calc.px_area_to_um2(et_area_px2)),
+            "count": et_count
+        },
+        "PLB": {
+            "total_area_um2": r(calc.px_area_to_um2(plb_area_px2)),
+            "count": plb_count
+        },
+        "Prothylakoid": {
+            "count": pro_count,
+            "total_length_um": r(calc.px_len_to_um(pro_len_px))
+        },
+        "Plastoglobule": {
+            "count": pg_count,
+            "diameter_um": r(calc.px_len_to_um(float(np.mean(pg_diams_px)))) if pg_diams_px else 0.0
+        },
+        "StarchGain": {
+            "count": starch_count,
+            "total_area_um2": r(calc.px_area_to_um2(starch_area_px2))
+        }
+    }
+    return analysis, um_per_px_str
