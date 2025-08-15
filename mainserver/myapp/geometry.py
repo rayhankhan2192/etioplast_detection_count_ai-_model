@@ -88,3 +88,69 @@ class MeasurementCalculator:
 
     def px_len_to_um(self, length_px: float) -> float:
         return float(length_px) * self.um_per_px
+    
+    
+def _binary_area(mask: np.ndarray) -> int:
+    return int(np.count_nonzero(mask > 0))
+
+def _equivalent_diameter_px(area_px2: float) -> float:
+    if area_px2 <= 0:
+        return 0.0
+    return math.sqrt(4.0 * area_px2 / math.pi)
+
+def _skeleton_length_px(mask: np.ndarray) -> int:
+    sk = skeletonize((mask > 0).astype(bool))
+    return int(np.count_nonzero(sk))
+
+def write_measurements_csv(valid_etioplasts, px_per_um: float, save_dir: str, base_name: str):
+    """
+    Create per-etioplast CSV with all requested metrics (valid objects only).
+    """
+    calc = MeasurementCalculator(px_per_um)
+    rows = []
+    for et_idx, et in enumerate(valid_etioplasts, 1):
+        row = {
+            'Image': base_name,
+            'Etioplast_ID': f'Etioplast_{et_idx}',
+            'Etioplast_Area_um2': calc.px_area_to_um2(_binary_area(et.mask)),
+            'PLB_Area_um2': 0.0,
+            'Prothylakoid_Number': 0,
+            'Total_Prothylakoid_Length_um': 0.0,
+            'Plastoglobule_Number': 0,
+            'Plastoglobule_Diameter_Mean_um': 0.0,
+            'Starch_Grain_Area_um2': 0.0,
+        }
+        pg_diams = []
+        starch_area_px2 = 0
+        plb_area_px2 = 0
+        pro_len_px = 0
+
+        for ch in et.children:
+            if not getattr(ch, 'is_valid', False):
+                continue
+            if ch.class_id == 1:  # PLB
+                plb_area_px2 += _binary_area(ch.mask)
+            elif ch.class_id == 2:  # Prothylakoid
+                row['Prothylakoid_Number'] += 1
+                pro_len_px += _skeleton_length_px(ch.mask)
+            elif ch.class_id == 3:  # Plastoglobule
+                row['Plastoglobule_Number'] += 1
+                area_px2 = _binary_area(ch.mask)
+                d_px = _equivalent_diameter_px(area_px2)
+                if d_px > 0:
+                    pg_diams.append(d_px)
+            elif ch.class_id == 4:  # Starch Grain
+                starch_area_px2 += _binary_area(ch.mask)
+
+        row['PLB_Area_um2'] = calc.px_area_to_um2(plb_area_px2)
+        row['Total_Prothylakoid_Length_um'] = calc.px_len_to_um(pro_len_px)
+        row['Starch_Grain_Area_um2'] = calc.px_area_to_um2(starch_area_px2)
+        if pg_diams:
+            row['Plastoglobule_Diameter_Mean_um'] = calc.px_len_to_um(float(np.mean(pg_diams)))
+        rows.append(row)
+
+    os.makedirs(save_dir, exist_ok=True)
+    csv_path = os.path.join(save_dir, f"{base_name}_measurements.csv")
+    import pandas as pd
+    pd.DataFrame(rows).to_csv(csv_path, index=False, float_format='%.3f')
+    return csv_path
