@@ -1,35 +1,25 @@
-
-from ultralytics import YOLO
-import cv2
 import os
-import numpy as np
 import logging
 from django.conf import settings
 
 class Config:
+    MODEL_PATH = r'E:\Python\Research\Ethioplast\Etioplast New\Origial Data\Annotated Data Yolo\Model\modelv3_m100.pt'
+    SOURCE_IMAGE = r'E:\Python\Research\Ethioplast\Etioplast New\Origial Data\Annotated Data Yolo\test'
+
+    # All outputs go under MEDIA_ROOT/detections
     SAVE_DIR = os.path.join(settings.MEDIA_ROOT, 'detections')
+    MEASURE_DECIMALS = 3
+    
     CONFIDENCE_THRESHOLD = 0.5
     MIN_CONTOUR_AREA = 30
     IOU_THRESHOLD = 0.3
 
-    # STRICT containment (no fallbacks)
-    PARENT_DILATE_ITER = 1         # keep small; 0–2
+    # STRICT containment
+    PARENT_DILATE_ITER = 1
     PARENT_KERNEL = 3
 
-    # class-specific overlap minima (intersection_area / child_area)
-    CLASS_OVERLAP_MIN = {
-        1: 0.60,  # PLB stricter
-        2: 0.35,  # Prothylakoid tolerant
-        3: 0.55,  # Plastoglobule
-        4: 0.55,  # Starch Grain
-    }
-    # % of contour points that must lie inside parent
-    CLASS_POINTS_INSIDE_MIN = {
-        1: 0.60,
-        2: 0.40,
-        3: 0.55,
-        4: 0.55,
-    }
+    CLASS_OVERLAP_MIN = { 1: 0.60, 2: 0.35, 3: 0.55, 4: 0.55 }
+    CLASS_POINTS_INSIDE_MIN = { 1: 0.60, 2: 0.40, 3: 0.55, 4: 0.55 }
 
     # Etioplast completeness/shape
     BORDER_MARGIN = 4
@@ -45,8 +35,14 @@ class Config:
     FONT_SCALE = 0.6
     FONT_THICKNESS = 2
 
+    IMG_SIZE = 640
+
+    # Default scale: pixels per micrometer (px/µm) — you can override per-image
+    PX_PER_UM = 850
+
 os.makedirs(Config.SAVE_DIR, exist_ok=True)
 os.makedirs(os.path.join(Config.SAVE_DIR, 'masks'), exist_ok=True)
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -55,11 +51,12 @@ CLASS_DEFINITIONS = {
     1: {'name': 'PLB', 'color': (0, 255, 0)},
     2: {'name': 'Prothylakoid', 'color': (0, 0, 255)},
     3: {'name': 'Plastoglobule', 'color': (255, 255, 0)},
-    4: {'name': 'Starch Grain', 'color': (128, 0, 128)}
+    4: {'name': 'Starch Grain', 'color': (128, 0, 128)},
 }
 
 class DetectedObject:
     def __init__(self, class_id, contour, mask, confidence, bbox, yolo_detection_idx):
+        import cv2
         self.class_id = class_id
         self.contour = contour
         self.mask = mask
@@ -74,6 +71,7 @@ class DetectedObject:
         self.object_id = None
 
     def _calculate_center(self):
+        import cv2
         M = cv2.moments(self.contour)
         if M['m00'] != 0:
             return (int(M['m10'] / M['m00']), int(M['m01'] / M['m00']))

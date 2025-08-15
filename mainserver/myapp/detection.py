@@ -1,7 +1,7 @@
 import os
+import logging
 import cv2
 import numpy as np
-import logging
 from skimage.transform import resize
 from ultralytics import YOLO
 from dotenv import load_dotenv
@@ -9,17 +9,13 @@ from dotenv import load_dotenv
 from .config import Config, CLASS_DEFINITIONS, DetectedObject
 
 load_dotenv()
-# Allow .env override, but fall back to Config.MODEL_PATH
-model_path = os.getenv("MODEL_PATH") 
-
 logger = logging.getLogger(__name__)
-_YOLO = None
 
+_YOLO = None
 def get_model():
     global _YOLO
     if _YOLO is None:
-        if not model_path:
-            raise ValueError("MODEL_PATH is not set in .env and Config.MODEL_PATH is missing.")
+        model_path = os.getenv("MODEL_PATH") or Config.MODEL_PATH
         logger.info(f"Loading YOLO model: {model_path}")
         _YOLO = YOLO(model_path)
     return _YOLO
@@ -27,11 +23,9 @@ def get_model():
 def run_yolo_detection(self, image_path):
     logger.info(f"Running YOLO detection on: {os.path.basename(image_path)}")
     model = get_model()
-    # Ensure IMG_SIZE exists (default 640 if not in Config)
-    imgsz = getattr(Config, "IMG_SIZE", 640)
     results = model.predict(
         source=image_path,
-        imgsz=imgsz,
+        imgsz=Config.IMG_SIZE,
         conf=Config.CONFIDENCE_THRESHOLD,
         iou=Config.IOU_THRESHOLD,
         save=False,
@@ -58,9 +52,6 @@ def extract_model_summary(self, yolo_result):
     return False
 
 def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=None):
-    """
-    Returns: (detected_objects: list[DetectedObject], image_shape: (h, w))
-    """
     img = cv2.imread(image_path)
     if img is None:
         return [], None
@@ -88,8 +79,7 @@ def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=None):
         if cv2.contourArea(main_contour) < min_contour_area:
             continue
 
-        # scale box from model size to original size
-        imgsz = getattr(Config, "IMG_SIZE", 640)
+        imgsz = Config.IMG_SIZE
         scale_x, scale_y = orig_w / imgsz, orig_h / imgsz
         scaled_box = [int(box[0]*scale_x), int(box[1]*scale_y), int(box[2]*scale_x), int(box[3]*scale_y)]
 
@@ -97,4 +87,5 @@ def convert_yolo_to_objects(yolo_result, image_path, min_contour_area=None):
         obj.object_id = f"{CLASS_DEFINITIONS[cid]['name']}_{i+1}"
         detected.append(obj)
 
+    logger.info(f"Converted {len(detected)} YOLO detections to objects")
     return detected, image_shape
