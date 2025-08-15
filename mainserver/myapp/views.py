@@ -19,24 +19,39 @@ def _unique_dir(root: str, name: str) -> str:
     return d
 
 def _as_media_url(path: str) -> str | None:
-    """
-    Convert an absolute filesystem path under MEDIA_ROOT to a MEDIA_URL.
-    Returns None if the path is not inside MEDIA_ROOT.
-    """
     try:
         rel = os.path.relpath(path, settings.MEDIA_ROOT)
     except ValueError:
         return None
-    # Always forward slashes for URLs
-    rel_url = rel.replace(os.sep, '/')
-    return settings.MEDIA_URL.rstrip('/') + '/' + rel_url.lstrip('/')
+    return settings.MEDIA_URL.rstrip('/') + '/' + rel.replace(os.sep, '/').lstrip('/')
+
+def _as_media_url_abs(request, path: str) -> str | None:
+    rel_url = _as_media_url(path)
+    return request.build_absolute_uri(rel_url) if rel_url else None
+
+def _get_px_per_um(request, fallback=None):
+    """Read px_per_um from POST, else fallback, else Config.PX_PER_UM."""
+    val = request.POST.get('px_per_um')
+    if val not in (None, ''):
+        try:
+            return float(val)
+        except ValueError:
+            pass
+    return float(fallback if fallback is not None else Config.PX_PER_UM)
 
 @csrf_exempt
 def analyze_upload(request):
+    """
+    POST multipart/form-data:
+      - file: image file (png/jpg/tif/etc), OR
+      - source_dir: absolute server path to a folder of images
+      - px_per_um: optional (float)
+    Returns: JSON with output_urls + measurements summary + scale_used
+    """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'detail': 'Use POST'}, status=405)
 
-    # Folder mode
+    # -------- Folder mode --------
     source_dir = request.POST.get('source_dir')
     if source_dir:
         try:
@@ -48,6 +63,7 @@ def analyze_upload(request):
             if not files:
                 return JsonResponse({'status': 'ok', 'mode': 'folder', 'processed': 0, 'results': []})
 
+            px_per_um = _get_px_per_um(request)
             results = []
             for fname in files:
                 image_path = os.path.join(source_dir, fname)
@@ -57,12 +73,11 @@ def analyze_upload(request):
                 old_save_dir = Config.SAVE_DIR
                 Config.SAVE_DIR = per_image_dir
                 try:
-                    p = Process()
+                    p = Process(px_per_um=px_per_um)
                     report = p.process_image(image_path)
                 finally:
                     Config.SAVE_DIR = old_save_dir
 
-                # Convert report outputs to URLs
                 output_urls = {}
                 if report and 'outputs' in report:
                     for k, pth in report['outputs'].items():
@@ -71,8 +86,9 @@ def analyze_upload(request):
                 results.append({
                     'file': fname,
                     'save_dir': per_image_dir,
-                    'save_dir_url': _as_media_url(per_image_dir),  # may not list; useful as base
-                    #'report': report,
+                    'save_dir_url': _as_media_url(per_image_dir),
+                    'analysis': report.get('analysis') if report else None,
+                    'scale_used': report.get('scale_used') if report else None,
                     'output_urls': output_urls
                 })
 
@@ -87,6 +103,8 @@ def analyze_upload(request):
 
     up = request.FILES['file']
     try:
+        px_per_um = _get_px_per_um(request)
+
         original_name = get_valid_filename(os.path.basename(up.name))
         base_name, _ = os.path.splitext(original_name)
 
@@ -99,7 +117,7 @@ def analyze_upload(request):
         old_save_dir = Config.SAVE_DIR
         Config.SAVE_DIR = per_image_dir
         try:
-            p = Process()
+            p = Process(px_per_um=px_per_um)
             report = p.process_image(upload_path)
         finally:
             Config.SAVE_DIR = old_save_dir
@@ -107,22 +125,75 @@ def analyze_upload(request):
         if report is None:
             return JsonResponse({'status': 'error', 'detail': 'Detection failed or no detections'}, status=200)
 
-        # Build URLs for client
         output_urls = {}
         if 'outputs' in report:
             for k, pth in report['outputs'].items():
-                output_urls[k] = _as_media_url(pth)
+                output_urls[k] = _as_media_url_abs(request, pth)
+
 
         return JsonResponse({
             'status': 'ok',
             'mode': 'single',
-            'upload_path': upload_path,
-            'upload_url': _as_media_url(upload_path),
-            'save_dir': per_image_dir,
-            'save_dir_url': _as_media_url(per_image_dir),  # base folder URL
-            #'report': report,
-            'output_urls': output_urls
+            'save_dir_url':_as_media_url_abs(request, per_image_dir),
+            'output_urls': output_urls,
+            'analysis': report.get('analysis'),
+            'scale_used': report.get('scale_used'),
         })
     except Exception as e:
         logger.exception("Analyze failed")
+        return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
+
+@csrf_exempt
+def analyze_summary(request):
+    """
+    Same processing as analyze_upload (single upload), but returns only the compact JSON:
+    {
+        "analysis": {...},
+        "scale_used": "0.006944 µm/pixel",
+        "output_image_url": "http://127.0.0.1:8000/media/detections/<folder>/<file>_model_first_detection.png"
+    }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'detail': 'Use POST'}, status=405)
+
+    if 'file' not in request.FILES:
+        return JsonResponse({'status': 'error', 'detail': 'No file provided'}, status=400)
+
+    up = request.FILES['file']
+    try:
+        px_per_um = _get_px_per_um(request)
+
+        original_name = get_valid_filename(os.path.basename(up.name))
+        base_name, _ = os.path.splitext(original_name)
+
+        per_image_dir = _unique_dir(Config.SAVE_DIR, base_name)
+        upload_path = os.path.join(per_image_dir, original_name)
+        with open(upload_path, "wb+") as dst:
+            for chunk in up.chunks():
+                dst.write(chunk)
+
+        old_save_dir = Config.SAVE_DIR
+        Config.SAVE_DIR = per_image_dir
+        try:
+            p = Process(px_per_um=px_per_um)
+            report = p.process_image(upload_path)
+        finally:
+            Config.SAVE_DIR = old_save_dir
+
+        if report is None:
+            return JsonResponse({'status': 'error', 'detail': 'Detection failed or no detections'}, status=200)
+
+        # choose the blended output as the preview
+        out_url = None
+        if 'outputs' in report and 'blended' in report['outputs']:
+            out_url = _as_media_url_abs(request, report['outputs']['blended'])
+
+        return JsonResponse({
+            "analysis": report.get('analysis'),
+            "scale_used": report.get('scale_used'),
+            "output_image_url": out_url
+        })
+    
+    except Exception as e:
+        logger.exception("Analyze summary failed")
         return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
