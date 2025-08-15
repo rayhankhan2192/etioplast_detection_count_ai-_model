@@ -1,4 +1,3 @@
-# detector/views.py
 import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -73,7 +72,7 @@ def analyze_upload(request):
                     'file': fname,
                     'save_dir': per_image_dir,
                     'save_dir_url': _as_media_url(per_image_dir),  # may not list; useful as base
-                    'report': report,
+                    #'report': report,
                     'output_urls': output_urls
                 })
 
@@ -121,7 +120,7 @@ def analyze_upload(request):
             'upload_url': _as_media_url(upload_path),
             'save_dir': per_image_dir,
             'save_dir_url': _as_media_url(per_image_dir),  # base folder URL
-            'report': report,
+            #'report': report,
             'output_urls': output_urls
         })
     except Exception as e:
