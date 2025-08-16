@@ -1,4 +1,5 @@
-import { useState } from "react";
+// App.jsx
+import { useEffect, useState } from "react";
 import "./App.css";
 import About from "./components/About";
 import Footer from "./components/Footer";
@@ -11,64 +12,88 @@ import UploadSection from "./components/UploadSection";
 
 function App() {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [result, setResult] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // 🔹 Shared index for slideshow + metrics + CSV + AI
+  const [activeIndex, setActiveIndex] = useState(0);
+
   const handleDetection = async () => {
-    if (!selectedFile) {
-      alert("Please upload an image first.");
+    const files = selectedFiles?.length ? selectedFiles : (selectedFile ? [selectedFile] : []);
+    if (!files.length) {
+      alert("Please upload at least one image first.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
+    setLoading(true);
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/analyze-file/",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+      let response;
+      if (files.length === 1) {
+        const formData = new FormData();
+        formData.append("file", files[0]);
+        response = await fetch("http://127.0.0.1:8000/api/analyze-file/", { method: "POST", body: formData });
+      } else {
+        const formData = new FormData();
+        files.forEach((f) => formData.append("files", f));
+        response = await fetch("http://127.0.0.1:8000/api/analyze-folder/", { method: "POST", body: formData });
       }
+
+      if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
-      // console.log("Detection result:", data);
       setResult(data);
-      // TODO: set state with result or display on UI
-    } catch (error) {
-      console.error("Detection failed:", error);
+      setActiveIndex(0); // reset to first image on new results
+    } catch (e) {
+      console.error("Detection failed:", e);
       alert("Detection failed. See console for details.");
+    } finally {
+      setLoading(false);
     }
   };
-  return (
-    <>
-      <div className="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-grow">
-          <Hero />
 
-          <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12">
-            {/* Left Column: Upload + Legend */}
-            <div className="lg:col-span-1 space-y-6">
-              <UploadSection
-                handleDetection={handleDetection}
-                setSelectedFile={setSelectedFile}
-              />
-              <Legend />
-            </div>
-            {/* Right Column: Detection + Quantification Results */}
-            <div className="lg:col-span-2 space-y-2">
-              <ResultsDisplay result={result} />
-              <QuantificationPanel result={result} />
-            </div>
+  // Keep activeIndex in-bounds if results length changes
+  useEffect(() => {
+    const len = Array.isArray(result?.results) ? result.results.length : (result?.output_image_url ? 1 : 0);
+    if (activeIndex >= len) setActiveIndex(0);
+  }, [result, activeIndex]);
+
+  return (
+    <div className="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow">
+        <Hero />
+
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12">
+          <div className="lg:col-span-1 space-y-6">
+            <UploadSection
+              handleDetection={handleDetection}
+              setSelectedFiles={setSelectedFiles}
+              setSelectedFile={setSelectedFile}
+            />
+            <Legend />
           </div>
-        </main>
-        <About />
-        <Footer />
-      </div>
-    </>
+
+          <div className="lg:col-span-2 space-y-2">
+            {loading && (
+              <div className="p-6 rounded-xl border bg-white shadow text-slate-600">Processing… please wait.</div>
+            )}
+
+            {/* 🔻 pass shared index both ways */}
+            <ResultsDisplay
+              result={result}
+              activeIndex={activeIndex}
+              setActiveIndex={setActiveIndex}
+            />
+            <QuantificationPanel
+              result={result}
+              activeIndex={activeIndex}
+            />
+          </div>
+        </div>
+      </main>
+      <About />
+      <Footer />
+    </div>
   );
 }
 
