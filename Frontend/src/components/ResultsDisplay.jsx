@@ -53,7 +53,7 @@ export default function ResultsDisplay({ result }) {
           )}
 
           {result?.output_image_url && (
-            <img src={result?.output_image_url} alt="" srcset="" />
+            <img src={result?.output_urls.contours} alt="" srcset="" />
           )}
           <AIGeneratedReport result={result} />
         </div>

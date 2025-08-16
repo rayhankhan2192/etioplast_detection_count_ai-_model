@@ -41,7 +41,7 @@ def _get_px_per_um(request, fallback=None):
     return float(fallback if fallback is not None else Config.PX_PER_UM)
 
 @csrf_exempt
-def analyze_upload(request):
+def analyze_summary_folder(request):
     """
     POST multipart/form-data:
       - file: image file (png/jpg/tif/etc), OR
@@ -51,8 +51,8 @@ def analyze_upload(request):
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'detail': 'Use POST'}, status=405)
-
-    # -------- Folder mode --------
+    
+    #Folder mode
     source_dir = request.POST.get('source_dir')
     if source_dir:
         try:
@@ -66,6 +66,7 @@ def analyze_upload(request):
 
             px_per_um = _get_px_per_um(request)
             results = []
+
             for fname in files:
                 image_path = os.path.join(source_dir, fname)
                 base_name, _ = os.path.splitext(fname)
@@ -79,73 +80,52 @@ def analyze_upload(request):
                 finally:
                     Config.SAVE_DIR = old_save_dir
 
+                # Build per-file result
+                if not report:
+                    results.append({
+                        'file': fname,
+                        'save_dir_url': _as_media_url_abs(request, per_image_dir),
+                        'error': 'Detection failed or no detections'
+                    })
+                    continue
+
+                # Absolute URLs for outputs
                 output_urls = {}
-                if report and 'outputs' in report:
+                if 'outputs' in report:
                     for k, pth in report['outputs'].items():
-                        output_urls[k] = _as_media_url(pth)
+                        output_urls[k] = _as_media_url_abs(request, pth)
+
+                # Choose blended as preview
+                out_url = None
+                if 'outputs' in report and 'blended' in report['outputs']:
+                    out_url = _as_media_url_abs(request, report['outputs']['blended'])
+
+                # Optional: generative explanation (don’t break the API if it fails)
+                explanation = None
+                try:
+                    explanation = get_generative_response(report.get('analysis', {}))
+                except Exception:
+                    logger.exception("Generative explanation failed")
 
                 results.append({
-                    'file': fname,
-                    'save_dir': per_image_dir,
-                    'save_dir_url': _as_media_url(per_image_dir),
-                    'analysis': report.get('analysis') if report else None,
-                    'scale_used': report.get('scale_used') if report else None,
-                    'output_urls': output_urls
+                    # 'file': fname,
+                    # 'save_dir_url': _as_media_url_abs(request, per_image_dir),
+                    'analysis': report.get('analysis'),
+                    'scale_used': report.get('scale_used'),
+                    'output_image_url': out_url,
+                    'output_urls': output_urls,
+                    'explanation': explanation
                 })
 
             return JsonResponse({'status': 'ok', 'mode': 'folder', 'processed': len(results), 'results': results})
+
         except Exception as e:
             logger.exception("Folder processing failed")
             return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
 
-    #Single upload
-    if 'file' not in request.FILES:
-        return JsonResponse({'status': 'error', 'detail': 'No file provided'}, status=400)
-
-    up = request.FILES['file']
-    try:
-        px_per_um = _get_px_per_um(request)
-
-        original_name = get_valid_filename(os.path.basename(up.name))
-        base_name, _ = os.path.splitext(original_name)
-
-        per_image_dir = _unique_dir(Config.SAVE_DIR, base_name)
-        upload_path = os.path.join(per_image_dir, original_name)
-        with open(upload_path, "wb+") as dst:
-            for chunk in up.chunks():
-                dst.write(chunk)
-
-        old_save_dir = Config.SAVE_DIR
-        Config.SAVE_DIR = per_image_dir
-        try:
-            p = Process(px_per_um=px_per_um)
-            report = p.process_image(upload_path)
-        finally:
-            Config.SAVE_DIR = old_save_dir
-
-        if report is None:
-            return JsonResponse({'status': 'error', 'detail': 'Detection failed or no detections'}, status=200)
-
-        output_urls = {}
-        if 'outputs' in report:
-            for k, pth in report['outputs'].items():
-                output_urls[k] = _as_media_url_abs(request, pth)
-
-
-        return JsonResponse({
-            'status': 'ok',
-            'mode': 'single',
-            'save_dir_url':_as_media_url_abs(request, per_image_dir),
-            'output_urls': output_urls,
-            'analysis': report.get('analysis'),
-            'scale_used': report.get('scale_used'),
-        })
-    except Exception as e:
-        logger.exception("Analyze failed")
-        return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
 
 @csrf_exempt
-def analyze_summary(request):
+def analyze_summary_file(request):
     """
     Same processing as analyze_upload (single upload), but returns only the compact JSON:
     {
@@ -183,6 +163,11 @@ def analyze_summary(request):
 
         if report is None:
             return JsonResponse({'status': 'error', 'detail': 'Detection failed or no detections'}, status=200)
+        
+        output_urls = {}
+        if 'outputs' in report:
+            for k, pth in report['outputs'].items():
+                output_urls[k] = _as_media_url_abs(request, pth)
 
         # choose the blended output as the preview
         out_url = None
@@ -198,9 +183,9 @@ def analyze_summary(request):
             "analysis": report.get('analysis'),
             "scale_used": report.get('scale_used'),
             "output_image_url": out_url,
+            'output_urls': output_urls,
             "explanation": explanation
         })
-    
     except Exception as e:
         logger.exception("Analyze summary failed")
         return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)

@@ -23,7 +23,7 @@ function App() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/analyze-summary/",
+        "http://127.0.0.1:8000/api/analyze-file/",
         {
           method: "POST",
           body: formData,

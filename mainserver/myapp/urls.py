@@ -1,10 +1,9 @@
 from django.urls import path
-from .views import analyze_upload, analyze_summary
+from .views import analyze_summary_file, analyze_summary_folder
 
 urlpatterns = [
-    path('analyze/', analyze_upload, name='analyze_upload'),
-    path('detect-analyze/', analyze_upload, name='analyze_upload_alias'),
-    path('analyze-summary/', analyze_summary, name='analyze_summary'),
+    path('analyze-folder/', analyze_summary_folder, name='analyze-folder'),
+    path('analyze-file/', analyze_summary_file, name='analyze-filee'),
 ]
 
 # # if settings.DEBUG:
