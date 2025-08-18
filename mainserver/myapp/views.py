@@ -86,6 +86,7 @@ def analyze_summary_folder(request):
         os.makedirs(session_dir, exist_ok=True)
 
         results = []
+        bundle_items = []
 
         for orig_name, fobj in images:
             # Save uploaded file to disk
@@ -141,8 +142,27 @@ def analyze_summary_folder(request):
                 'explanation': explanation
             })
 
+            # <<< NEW: remember where this image’s outputs were saved
+            base_name, _ = os.path.splitext(safe_name)
+            bundle_items.append({
+                "per_image_dir": per_image_dir,
+                "base_name": base_name,
+            })
+
         mode = 'folder' if len(images) > 1 else 'file'
-        return JsonResponse({'status': 'ok', 'mode': mode, 'processed': len(results), 'results': results})
+        # <<< NEW: build one master ZIP for all images in this request
+        master_zip = _make_master_zip(request, bundle_items) if len(bundle_items) > 0 else None
+        
+        return JsonResponse({
+            'status': 'ok', 
+            'mode': mode, 
+            'processed': len(results), 
+            'results': results,
+            # NEW:
+            'master_zip_url': master_zip['master_url'] if master_zip else None,
+            'master_zip_size_bytes': master_zip['size_bytes'] if master_zip else 0,
+            #'master_zip_included': master_zip['included'] if master_zip else [],
+            })
 
     except Exception as e:
         logger.exception("Folder processing failed")
@@ -297,3 +317,59 @@ def analyze_summary_file(request):
     except Exception as e:
         logger.exception("Analyze summary failed")
         return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
+    
+
+
+
+# ...... ZIP -------
+
+import zipfile
+import datetime
+# ... keep your other imports
+
+def _zip_add_file(zf: zipfile.ZipFile, abs_path: str, arcname: str, included: list):
+    if abs_path and os.path.isfile(abs_path):
+        zf.write(abs_path, arcname)
+        included.append(arcname)
+
+def _make_master_zip(request, bundle_items: list[dict]) -> dict:
+    """
+    bundle_items: list of dicts with keys:
+      - per_image_dir (abs path)
+      - base_name (file base without ext)
+    Will create a single master zip that contains per-image outputs under subfolders:
+      <base>/<base>_model_first_detection.png
+      <base>/<base>_contours_only.png
+      <base>/<base>_overlay.png         # optional, remove if not needed
+      <base>/<base>_measurements.csv
+    """
+    bundles_root = os.path.join(settings.MEDIA_ROOT, 'detections', '_batches')
+    os.makedirs(bundles_root, exist_ok=True)
+
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    master_name = f"master_{stamp}_{uuid.uuid4().hex[:6]}.zip"
+    master_path = os.path.join(bundles_root, master_name)
+
+    included = []
+    with zipfile.ZipFile(master_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for item in bundle_items:
+            per_image_dir = item["per_image_dir"]
+            base_name     = item["base_name"]
+
+            blended  = os.path.join(per_image_dir, f"{base_name}_model_first_detection.png")
+            contours = os.path.join(per_image_dir, f"{base_name}_contours_only.png")
+            overlay  = os.path.join(per_image_dir, f"{base_name}_overlay.png")         # optional
+            csv_file = os.path.join(per_image_dir, f"{base_name}_measurements.csv")
+
+            # put each image’s files under a subfolder named <base_name> inside the ZIP
+            _zip_add_file(zf, blended,  f"{base_name}/{os.path.basename(blended)}", included)
+            _zip_add_file(zf, contours, f"{base_name}/{os.path.basename(contours)}", included)
+            _zip_add_file(zf, overlay,  f"{base_name}/{os.path.basename(overlay)}", included)   # optional
+            _zip_add_file(zf, csv_file, f"{base_name}/{os.path.basename(csv_file)}", included)
+
+    return {
+        "master_path": master_path,
+        "master_url": _as_media_url_abs(request, master_path),
+        "included": included,
+        "size_bytes": os.path.getsize(master_path) if os.path.exists(master_path) else 0,
+    }
