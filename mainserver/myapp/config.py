@@ -1,10 +1,8 @@
 import os
 import logging
 from django.conf import settings
-
+# v1.0.1
 class Config:
-    MODEL_PATH = r'E:\Python\Research\Ethioplast\Etioplast New\Origial Data\Annotated Data Yolo\Model\modelv3_m100.pt'
-    SOURCE_IMAGE = r'E:\Python\Research\Ethioplast\Etioplast New\Origial Data\Annotated Data Yolo\test'
 
     # All outputs go under MEDIA_ROOT/detections
     SAVE_DIR = os.path.join(settings.MEDIA_ROOT, 'detections')
@@ -38,7 +36,7 @@ class Config:
     IMG_SIZE = 640
 
     # Default scale: pixels per micrometer (px/µm) — you can override per-image
-    PX_PER_UM = 850
+    PX_PER_UM = 0
 
 os.makedirs(Config.SAVE_DIR, exist_ok=True)
 os.makedirs(os.path.join(Config.SAVE_DIR, 'masks'), exist_ok=True)

@@ -1,3 +1,4 @@
+# v1.0.1
 import os
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
