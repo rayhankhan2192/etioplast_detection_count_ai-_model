@@ -3,35 +3,51 @@ import logging
 from django.conf import settings
 # v1.0.1
 class Config:
-
     # All outputs go under MEDIA_ROOT/detections
     SAVE_DIR = os.path.join(settings.MEDIA_ROOT, 'detections')
     MEASURE_DECIMALS = 3
-    
-    CONFIDENCE_THRESHOLD = 0.5
-    MIN_CONTOUR_AREA = 30
-    IOU_THRESHOLD = 0.3
 
-    # STRICT containment
-    PARENT_DILATE_ITER = 1
+    # Detection / NMS
+    # 0.1 is often too low (lots of noise). 0.20–0.30 is a good balance.
+    CONFIDENCE_THRESHOLD = 0.5
+    MIN_CONTOUR_AREA = 30          # allow smaller objects to pass (was 30)
+    IOU_THRESHOLD = 0.5            # be more willing to merge overlaps
+
+    # Containment helpers
+    PARENT_DILATE_ITER = 2         # grow parent a bit more so children fall inside
     PARENT_KERNEL = 3
 
-    CLASS_OVERLAP_MIN = { 1: 0.60, 2: 0.35, 3: 0.55, 4: 0.55 }
-    CLASS_POINTS_INSIDE_MIN = { 1: 0.60, 2: 0.40, 3: 0.55, 4: 0.55 }
+    # Overlap / inside-point minima (lenient)
+    # key: class_id => min overlap fraction
+    # 1: PLB, 2: Prothylakoid, 3: Plastoglobule, 4: Starch Grain
+    CLASS_OVERLAP_MIN = {
+        1: 0.45,   # was 0.60
+        2: 0.25,   # was 0.35
+        3: 0.45,   # was 0.55
+        4: 0.45    # was 0.55
+    }
+    CLASS_POINTS_INSIDE_MIN = {
+        1: 0.50,   # was 0.60
+        2: 0.30,   # was 0.40
+        3: 0.45,   # was 0.55
+        4: 0.45    # was 0.55
+    }
 
-    # Etioplast completeness/shape
-    BORDER_MARGIN = 4
-    AR_MIN, AR_MAX = 0.75, 1.33
-    EXTENT_MIN = 0.60
-    RECT_FILL_MIN = 0.65
-    POLY_EPS_FRAC = 0.02
-    POLY_MIN, POLY_MAX = 3, 8
+    # Etioplast completeness/shape (widen windows)
+    BORDER_MARGIN = 2              # was 4; allow closer-to-border parents
+    AR_MIN, AR_MAX = 0.55, 1.80    # was 0.75–1.33; real shapes vary more
+    EXTENT_MIN = 0.48              # was 0.60
+    RECT_FILL_MIN = 0.55           # was 0.65
+    POLY_EPS_FRAC = 0.03           # was 0.02; simplify contours a bit more
+    POLY_MIN, POLY_MAX = 3, 12     # was 3–8; allow richer polygons
 
+    # Drawing
     ALPHA_BLEND = 0.6
     LINE_THICKNESS = 3
     ELLIPSE_THICKNESS = 4
     FONT_SCALE = 0.6
     FONT_THICKNESS = 2
+
 
     IMG_SIZE = 640
 

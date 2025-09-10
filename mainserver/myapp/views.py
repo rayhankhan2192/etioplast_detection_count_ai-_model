@@ -307,14 +307,54 @@ def analyze_summary_file(request):
             explanation = get_generative_response(report.get('analysis', {}))
         except Exception:
             logger.exception("Generative explanation failed")
+        
+                # --- create a per-image ZIP (master zip for this image) ---
+        zip_path = os.path.join(per_image_dir, f"{base_name}.zip")
+        try:
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+        except Exception:
+            pass
+
+        # Expected output paths
+        blended_path  = report.get('outputs', {}).get('blended',  os.path.join(per_image_dir, f"{base_name}_model_first_detection.png"))
+        contours_path = report.get('outputs', {}).get('contours', os.path.join(per_image_dir, f"{base_name}_contours_only.png"))
+        overlay_path  = report.get('outputs', {}).get('overlay',  os.path.join(per_image_dir, f"{base_name}_overlay.png"))
+        csv_path      = os.path.join(per_image_dir, f"{base_name}_measurements.csv")
+        masks_dir     = os.path.join(per_image_dir, "masks")
+
+        included = []
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            # put top-level files at zip root
+            for ap in (blended_path, contours_path, overlay_path, csv_path):
+                if ap and os.path.isfile(ap):
+                    zf.write(ap, os.path.basename(ap))
+                    included.append(os.path.basename(ap))
+            # add masks/ folder (if exists)
+            if os.path.isdir(masks_dir):
+                for root, _, files in os.walk(masks_dir):
+                    for fn in files:
+                        fullp = os.path.join(root, fn)
+                        rel = os.path.relpath(fullp, masks_dir)
+                        arc = os.path.join("masks", rel).replace("\\", "/")
+                        zf.write(fullp, arc)
+                        included.append(arc)
+
+        master_zip_url = _as_media_url_abs(request, zip_path)
+        master_zip_size = os.path.getsize(zip_path) if os.path.exists(zip_path) else 0
 
         return JsonResponse({
             "analysis": report.get('analysis'),
             "scale_used": report.get('scale_used'),
             "output_image_url": out_url,
-            'output_urls': output_urls,
-            "explanation": explanation
+            "output_urls": output_urls,
+            "explanation": explanation,
+            # New zip fields:
+            "master_zip_url": master_zip_url,
+            # "master_zip_size_bytes": master_zip_size,
+            # "master_zip_included": included,
         })
+
     except Exception as e:
         logger.exception("Analyze summary failed")
         return JsonResponse({'status': 'error', 'detail': str(e)}, status=500)
