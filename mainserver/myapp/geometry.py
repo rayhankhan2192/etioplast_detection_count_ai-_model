@@ -110,10 +110,12 @@ def write_measurements_csv(valid_etioplasts, px_per_um: float, save_dir: str, ba
     calc = MeasurementCalculator(px_per_um)
     rows = []
     for et_idx, et in enumerate(valid_etioplasts, 1):
+        full_et_mask = mask_from_contour(et.mask.shape, et.contour, dilate_iters=0)
         row = {
             'Image': base_name,
             'Etioplast_ID': f'Etioplast_{et_idx}',
-            'Etioplast_Area_um2': calc.px_area_to_um2(_binary_area(et.mask)),
+            #'Etioplast_Area_um2': calc.px_area_to_um2(_binary_area(et.mask)),
+            'Etioplast_Area_um2': calc.px_area_to_um2(_binary_area(full_et_mask)),
             'PLB_Area_um2': 0.0,
             'Prothylakoid_Number': 0,
             'Total_Prothylakoid_Length_um': 0.0,
@@ -181,7 +183,11 @@ def summarize_for_api(valid_etioplasts, px_per_um: float, decimals: int | None =
 
     for et in valid_etioplasts:
         et_count += 1
-        et_area_px2 += _binary_area(et.mask)
+        # et_area_px2 += _binary_area(et.mask)
+        # sum full-border areas (ignore internal holes)
+        full_et_mask = mask_from_contour(et.mask.shape, et.contour, dilate_iters=0)
+        et_area_px2 += _binary_area(full_et_mask)
+
         for ch in et.children:
             if not getattr(ch, 'is_valid', False):
                 continue
@@ -218,7 +224,7 @@ def summarize_for_api(valid_etioplasts, px_per_um: float, decimals: int | None =
             "count": pg_count,
             "diameter_um": r(calc.px_len_to_um(float(np.mean(pg_diams_px)))) if pg_diams_px else 0.0
         },
-        "StarchGain": {
+        "StarchGrain": {
             "count": starch_count,
             "total_area_um2": r(calc.px_area_to_um2(starch_area_px2))
         }
