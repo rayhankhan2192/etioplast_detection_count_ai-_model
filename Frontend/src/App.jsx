@@ -23,7 +23,7 @@ function App() {
 
     try {
       const response = await fetch(
-        "http://178.16.139.239:8000/api/detect-analyze/",
+        "http://127.0.0.1:8000/api/detect-analyze/",
         {
           method: "POST",
           body: formData,

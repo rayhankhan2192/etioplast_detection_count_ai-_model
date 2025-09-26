@@ -1,3 +1,5 @@
+import AIGeneratedReport from "./AIGeneratedReport";
+
 export default function ResultsDisplay({ result }) {
   return (
     <section id="results" className="py-12 pb-2">
@@ -53,6 +55,7 @@ export default function ResultsDisplay({ result }) {
           {result?.output_image_url && (
             <img src={result?.output_image_url} alt="" srcset="" />
           )}
+          <AIGeneratedReport result={result} />
         </div>
       </div>
     </section>
