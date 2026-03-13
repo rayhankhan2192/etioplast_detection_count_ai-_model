@@ -12,6 +12,7 @@ TrainedModelv2/modelv2_s50.pt
 TrainedModelv2/modelv4_m63.pt
 TrainedModelv2/modelv5_m139.pt
 mainserver/Detection_Results/
+TrainedModelv2/
 
 
 # Python
