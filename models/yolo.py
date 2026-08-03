@@ -38,7 +38,7 @@ def parse_arguments():
     parser.add_argument("--resume", action="store_true", help="Resume training from the last checkpoint")
 
     # Custom Parameters - UPDATED FOR BIOLOGICAL STRUCTURES
-    parser.add_argument("--fl_gamma", type=float, default=1.5, help="Focal Loss gamma for class imbalance (scale of organelles)")
+    parser.add_argument("--fl_gamma", type=float, default=0.0, help="Focal Loss gamma for class imbalance (scale of organelles)")
     parser.add_argument("--degrees", type=float, default=90.0, help="Image rotation augmentation (EM images are rotation-invariant)")
     parser.add_argument("--flipud", type=float, default=0.5, help="Flip up-down probability")
     parser.add_argument("--device", type=str, default="auto", help="Hardware override: '0', '0,1', 'cpu', 'mps', or 'auto'")
