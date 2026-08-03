@@ -14,6 +14,7 @@ TrainedModelv2/modelv5_m139.pt
 mainserver/Detection_Results/
 TrainedModelv2/
 
+TrainedModelv3/
 
 # Python
 __pycache__/
