@@ -65,7 +65,7 @@ CLASS_DEFINITIONS = {
     1: {'name': 'PLB', 'color': (0, 255, 0)},
     2: {'name': 'Prothylakoid', 'color': (0, 0, 255)},
     3: {'name': 'Plastoglobule', 'color': (255, 255, 0)},
-    4: {'name': 'Starch Grain', 'color': (128, 0, 128)},
+    4: {'name': 'Starch Grain', 'color': (255, 0, 255)},
 }
 
 class DetectedObject:
