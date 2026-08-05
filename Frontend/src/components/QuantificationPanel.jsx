@@ -2,13 +2,22 @@
 import { useMemo, useState } from "react";
 import AIGeneratedReport from "./AIGeneratedReport";
 
+// Map colors to safe Tailwind background classes for the dot indicator ONLY
+const DOT_COLORS = {
+  blue: "bg-blue-600",
+  green: "bg-emerald-400",
+  red: "bg-rose-600",
+  cyan: "bg-cyan-300",
+  yellow: "bg-amber-400",
+};
+
 export default function QuantificationPanel({ result, activeIndex = 0 }) {
   const [downloading, setDownloading] = useState(false);
 
   const isFolder = Array.isArray(result?.results) && result.results.length > 0;
-  const masterZipUrl = isFolder ? result?.master_zip_url : null; // <-- use server-provided URL
+  const masterZipUrl = isFolder ? result?.master_zip_url : null;
 
-  // Normalize to an array; we can index everything with activeIndex
+  // Normalize to an array; index everything with activeIndex
   const items = useMemo(() => {
     if (isFolder) {
       return result.results.map((r, i) => ({
@@ -51,15 +60,14 @@ export default function QuantificationPanel({ result, activeIndex = 0 }) {
     };
   const A = active.analysis || {};
 
-  // ---- ZIP download: use master_zip_url from analyze-folder JSON ----
+  // ZIP download handler
   const handleDownloadZip = async () => {
     if (!isFolder || !masterZipUrl) return;
     try {
       setDownloading(true);
-      // Trigger browser download directly from the URL returned by the backend
       const a = document.createElement("a");
       a.href = masterZipUrl;
-      a.download = ""; // let server/content-disposition decide
+      a.download = "";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -82,7 +90,7 @@ export default function QuantificationPanel({ result, activeIndex = 0 }) {
           </div>
           <h2 className="text-2xl font-bold text-slate-900">📊 Quantified Results</h2>
 
-          {/* CSV for the active image + ZIP for all (from master_zip_url) */}
+          {/* Action buttons */}
           <div className="ml-auto flex items-center gap-2">
             {active.csvUrl ? (
               <a
@@ -114,19 +122,63 @@ export default function QuantificationPanel({ result, activeIndex = 0 }) {
           </div>
         </div>
 
-        {/* Metrics grid (active image) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <QuantCard color="yellow" label="Etioplast Area" value={`${A?.Etioplast?.total_area_um2 ?? 0} µm²`} />
-          <QuantCard color="purple" label="PLB Area" value={`${A?.PLB?.total_area_um2 ?? 0} µm²`} />
-          <QuantCard color="red" label="Prothylakoid Count" value={`${A?.Prothylakoid?.count ?? 0}`} />
-          <QuantCard color="red" label="Total Prothylakoid Length" value={`${A?.Prothylakoid?.total_length_um ?? 0} µm`} />
-          <QuantCard color="blue" label="Plastoglobule Count" value={`${A?.Plastoglobule?.count ?? 0}`} />
-          <QuantCard color="blue" label="Avg. Plastoglobule Diameter" value={`${A?.Plastoglobule?.diameter_um ?? 0} µm`} />
-          <QuantCard color="blue" label="Starch Grain Count" value={`${A?.StarchGrain?.count ?? A?.StarchGain?.count ?? 0}`} />
-          <QuantCard color="blue" label="Starch Grain Area" value={`${A?.StarchGrain?.total_area_um2 ?? A?.StarchGain?.total_area_um2 ?? 0} µm²`} />
-        </div>
+      {/* Metrics grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <QuantCard 
+          color="blue" 
+          label="Etioplast Area" 
+          value={`${A?.Etioplast?.total_area_um2 ?? 0} µm²`} 
+          subValue={`± ${A?.Etioplast?.std_area_um2 ?? 0} µm² (std)`}
+        />
+        
+        <QuantCard 
+          color="green" 
+          label="PLB Area" 
+          value={`${A?.PLB?.total_area_um2 ?? 0} µm²`} 
+          subValue={`± ${A?.PLB?.std_area_um2 ?? 0} µm² (std)`}
+        />
+        
+        <QuantCard 
+          color="red" 
+          label="Prothylakoid Count" 
+          value={`${A?.Prothylakoid?.count ?? 0}`} 
+        />
+        
+        <QuantCard 
+          color="red" 
+          label="Total Prothylakoid Length" 
+          value={`${A?.Prothylakoid?.total_length_um ?? 0} µm`} 
+          subValue={`± ${A?.Prothylakoid?.std_length_um ?? 0} µm (std)`}
+        />
+        
+        <QuantCard 
+          color="cyan" 
+          label="Plastoglobule Count" 
+          value={`${A?.Plastoglobule?.count ?? 0}`} 
+        />
+        
+        <QuantCard 
+          color="cyan" 
+          label="Avg. Plastoglobule Diameter" 
+          value={`${A?.Plastoglobule?.mean_diameter_um ?? A?.Plastoglobule?.diameter_um ?? 0} µm`} 
+          subValue={`± ${A?.Plastoglobule?.std_diameter_um ?? 0} µm (std)`}
+        />
+        
+        <QuantCard 
+          color="yellow" 
+          label="Starch Grain Count" 
+          value={`${A?.StarchGrain?.count ?? A?.StarchGain?.count ?? 0}`} 
+        />
+        
+        <QuantCard 
+          color="yellow" 
+          label="Starch Grain Area" 
+          value={`${A?.StarchGrain?.total_area_um2 ?? A?.StarchGain?.total_area_um2 ?? 0} µm²`} 
+          subValue={`± ${A?.StarchGrain?.std_area_um2 ?? 0} µm² (std)`}
+        />
+      </div>
 
-        {/* AI result UNDER the quantification */}
+        {/* AI report underneath */}
         {active.explanation && (
           <div className="mt-6">
             <AIGeneratedReport result={{ analysis: A, explanation: active.explanation }} />
@@ -137,14 +189,26 @@ export default function QuantificationPanel({ result, activeIndex = 0 }) {
   );
 }
 
-function QuantCard({ color, label, value }) {
+function QuantCard({ color = "blue", label, value, subValue }) {
+  const dotClass = DOT_COLORS[color] || DOT_COLORS.blue;
+
   return (
-    <div className={`bg-gradient-to-br from-${color}-50 to-${color}-100 p-4 rounded-xl border border-${color}-200`}>
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`color-dot bg-${color}-500`}></div>
-        <p className={`text-sm font-medium text-${color}-800`}>{label}</p>
+    <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 shadow-sm hover:border-slate-300 transition-colors">
+      <div className="flex items-center gap-2.5 mb-2">
+        {/* Colored Circle Dot ONLY */}
+        <div className={`w-3 h-3 rounded-full shrink-0 ${dotClass}`} />
+        
+        {/* Label */}
+        <p className="text-sm font-medium text-slate-600">{label}</p>
       </div>
-      <p className={`text-2xl font-bold text-${color}-900`}>{value}</p>
+      
+      {/* Main Value */}
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      
+      {/* Optional Sub-value (Mean ± Std) */}
+      {subValue && (
+        <p className="text-sm text-slate-500 mt-1 font-medium">{subValue}</p>
+      )}
     </div>
   );
 }
