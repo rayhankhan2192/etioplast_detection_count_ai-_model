@@ -49,7 +49,7 @@ class Config:
     FONT_THICKNESS = 2
 
 
-    IMG_SIZE = 640
+    IMG_SIZE = 1024
 
     # Default scale: pixels per micrometer (px/µm) — you can override per-image
     PX_PER_UM = 0
