@@ -10,7 +10,7 @@ const Hero = () => {
       <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-600 leading-relaxed">
         Advanced AI-powered detection of etioplast structures in electron
         microscopy images. Get precise quantification of biological structures
-        including PLB, prothylakoids, and plastoglobules.
+        including Etioplast, PLB, Prothylakoids, Plastoglobules and Starch Grain.
       </p>
     </div>
   );
