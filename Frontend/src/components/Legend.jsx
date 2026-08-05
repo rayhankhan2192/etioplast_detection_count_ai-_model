@@ -4,7 +4,7 @@ export function Legend() {
     { label: "PLB", color: "bg-green-400" },
     { label: "Prothylakoid", color: "bg-red-600" },
     { label: "Plastoglobule", color: "bg-cyan-300" },
-    { label: "Starch Grain", color: "bg-yellow-400" },
+    { label: "Starch Grain", color: "bg-purple-400" },
   ];
 
   return (

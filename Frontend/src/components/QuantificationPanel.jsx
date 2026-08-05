@@ -8,7 +8,7 @@ const DOT_COLORS = {
   green: "bg-emerald-400",
   red: "bg-rose-600",
   cyan: "bg-cyan-300",
-  yellow: "bg-amber-400",
+  purple: "bg-purple-400",
 };
 
 export default function QuantificationPanel({ result, activeIndex = 0 }) {
@@ -165,13 +165,13 @@ export default function QuantificationPanel({ result, activeIndex = 0 }) {
         />
         
         <QuantCard 
-          color="yellow" 
+          color="purple" 
           label="Starch Grain Count" 
           value={`${A?.StarchGrain?.count ?? A?.StarchGain?.count ?? 0}`} 
         />
         
         <QuantCard 
-          color="yellow" 
+          color="purple" 
           label="Starch Grain Area" 
           value={`${A?.StarchGrain?.total_area_um2 ?? A?.StarchGain?.total_area_um2 ?? 0} µm²`} 
           subValue={`± ${A?.StarchGrain?.std_area_um2 ?? 0} µm² (std)`}
