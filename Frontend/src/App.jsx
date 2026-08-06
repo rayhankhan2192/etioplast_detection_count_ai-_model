@@ -43,8 +43,8 @@ function App() {
 
     const isFolder = files.length > 1;
     const url = isFolder
-      ? "http://127.0.0.1:8000/api/analyze-folder/"
-      : "http://127.0.0.1:8000/api/analyze-file/";
+      ? "http://129.154.247.165:8000/api/analyze-folder/"
+      : "http://129.154.247.165:8000/api/analyze-file/";
 
     const formData = new FormData();
     if (isFolder) {

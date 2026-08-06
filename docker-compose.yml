@@ -6,8 +6,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mount the media folder to persist uploaded/processed images
-      - media_volume:/app/mainserver/media
+      # This forces Docker to sync the container's media directly to your host's mainserver/media folder
+      - ./mainserver/media:/app/mainserver/media
       - ./TrainedModelv3:/app/TrainedModelv3
     env_file:
       - ./mainserver/.env
@@ -18,10 +18,7 @@ services:
       context: ./Frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8081:80"
     depends_on:
       - backend
     restart: always
-
-volumes:
-  media_volume:
