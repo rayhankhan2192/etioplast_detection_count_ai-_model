@@ -6,15 +6,11 @@ media/
 Frontend-react/
 *.env
 mainserver/.env
-TrainedModelv2/best8v2.pt
-TrainedModelv2/modelv2_s50.pt
-# TrainedModelv2/modelv3_m100.pt
-TrainedModelv2/modelv4_m63.pt
-TrainedModelv2/modelv5_m139.pt
-mainserver/Detection_Results/
 TrainedModelv2/
 
-TrainedModelv3/
+mainserver/Detection_Results/
+
+TrainedModelv3/MY8mE20_v1.pt
 
 # Python
 __pycache__/
