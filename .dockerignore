@@ -1,0 +1,32 @@
+# 1. Virtual Environments
+venv/
+
+# 2. Large Datasets and Media
+Dataset/
+Test Image/
+media/
+runs/
+mainserver/Detection_Results/
+
+# 3. Heavy AI Model Folders
+TrainedModel/
+TrainedModelv2/
+TrainedModelv3/
+
+# 4. Frontend Code (The backend container does not need this)
+Frontend/
+node_modules/
+dist/
+
+# 5. Python Cache & Database
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+db.sqlite3
+
+# 6. Secrets & Configs
+.env
+*.env
+mainserver/.env
