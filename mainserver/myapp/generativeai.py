@@ -140,22 +140,23 @@ def generate_prompt(analysis):
 
 
 def get_generative_response(data):
-    prompt = generate_prompt(data)
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {
-                "role": "system", 
-                "content": "You are a professional plant biologist writing clean, paragraph-based analytical reports. You never use bullet points."
-            },
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.5 # Lowered slightly for more factual, less hallucinated responses
-    }
+    return f"AI is temporary unavailable for token limit. Please check back later."
+    # prompt = generate_prompt(data)
+    # payload = {
+    #     "model": MODEL,
+    #     "messages": [
+    #         {
+    #             "role": "system", 
+    #             "content": "You are a professional plant biologist writing clean, paragraph-based analytical reports. You never use bullet points."
+    #         },
+    #         {"role": "user", "content": prompt}
+    #     ],
+    #     "temperature": 0.5 # Lowered slightly for more factual, less hallucinated responses
+    # }
 
-    response = requests.post(API_URL, headers=HEADERS, json=payload)
+    # response = requests.post(API_URL, headers=HEADERS, json=payload)
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        raise Exception(f"LLM API error {response.status_code}: {response.text}")
+    # if response.status_code == 200:
+    #     return response.json()["choices"][0]["message"]["content"]
+    # else:
+    #     raise Exception(f"LLM API error {response.status_code}: {response.text}")
