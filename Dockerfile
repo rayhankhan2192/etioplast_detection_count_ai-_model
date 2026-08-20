@@ -35,4 +35,5 @@ EXPOSE 8000
 
 # Command to run the server (Development mode fallback: CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"])
 # For production, install gunicorn in your requirements.txt and use:
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "mainserver.wsgi:application"]
+#CMD ["gunicorn", "--bind", "0.0.0.0:8000", "mainserver.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "2", "mainserver.wsgi:application"]
