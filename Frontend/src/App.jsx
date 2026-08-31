@@ -42,9 +42,14 @@ function App() {
     }
 
     const isFolder = files.length > 1;
+    const baseUrl = 
+      import.meta.env.VITE_API_BASE_URL || 
+      process.env.REACT_APP_API_BASE_URL || 
+      "http://localhost:8000";
+
     const url = isFolder
-      ? "http://140.238.230.14:8000/api/analyze-folder/"
-      : "http://140.238.230.14:8000/api/analyze-file/";
+      ? `${baseUrl}/api/analyze-folder/`
+      : `${baseUrl}/api/analyze-file/`;
 
     const formData = new FormData();
     if (isFolder) {
